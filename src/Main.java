@@ -5,7 +5,7 @@ public  class Main {
     public static void main(String[] args) {
         //Контакты поставшика
         System.out.println("Contact of supplier:");
-        Supplier supplier = new Supplier("+7 705 893 9039", "Astana/2", "shot1ktop@gmail.com");
+        Supplier supplier = new Supplier("+7 705 893 9039", "Baglanova/2", "shot1ktop@gmail.com");
         System.out.print("Phone -> " + supplier.getPhone() + "; ");
         System.out.print("Email -> " + supplier.getEmail() + "; ");
         System.out.println("Address -> " + supplier.getAddress() + "; ");

@@ -1,4 +1,4 @@
-import java.util.ArrayList;
+//Warehouse Inventory Control System
 import java.util.Scanner;
 
 public  class Main {

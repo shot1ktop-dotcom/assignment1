@@ -11,7 +11,7 @@ public class Inventory {
     }
 
     public Inventory(boolean old_version, boolean new_version) {
-        this(); // важно!
+        this();
         this.old_version = old_version;
         this.new_version = new_version;
     }

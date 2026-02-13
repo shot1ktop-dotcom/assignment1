@@ -1,0 +1,121 @@
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+
+import java.io.*;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.Collectors;
+
+public class ProductHandler implements HttpHandler {
+
+    @Override
+    public void handle(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+
+        if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+
+        String method = exchange.getRequestMethod();
+
+        if ("GET".equals(method)) {
+            String response = getProducts();
+            sendResponse(exchange, 200, response);
+        } else if ("POST".equals(method)) {
+            saveProduct(exchange);
+        } else if ("DELETE".equals(method)) {
+            deleteProduct(exchange);
+        }
+    }
+
+    private String getProducts() {
+        List<String> jsonList = new ArrayList<>();
+       
+        try (Connection conn = Database.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT * FROM products ORDER BY id DESC")) {
+
+            while (rs.next()) {
+                String json = String.format(Locale.US, "{\"id\":%d, \"name\":\"%s\", \"price\":%.2f, \"supplierId\":%d}",
+                        rs.getInt("id"), rs.getString("name"), rs.getDouble("price"), rs.getInt("supplier_id"));
+                jsonList.add(json);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "[]";
+        }
+        return "[" + String.join(",", jsonList) + "]";
+    }
+
+    private void saveProduct(HttpExchange exchange) throws IOException {
+        try {
+            InputStreamReader isr = new InputStreamReader(exchange.getRequestBody(), "utf-8");
+            BufferedReader br = new BufferedReader(isr);
+            String body = br.lines().collect(Collectors.joining());
+
+            
+            String name = JsonUtils.parseJson(body, "name");
+            String priceStr = JsonUtils.parseJson(body, "price");
+            String supplierStr = JsonUtils.parseJson(body, "supplierId");
+
+            double price = priceStr.isEmpty() ? 0.0 : Double.parseDouble(priceStr);
+            int supplierId = supplierStr.isEmpty() ? 0 : Integer.parseInt(supplierStr);
+
+            try (Connection conn = Database.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement("INSERT INTO products (name, price, supplier_id) VALUES (?, ?, ?)")) {
+                stmt.setString(1, name);
+                stmt.setDouble(2, price);
+                stmt.setInt(3, supplierId);
+                stmt.executeUpdate();
+            }
+            sendResponse(exchange, 201, "{\"status\":\"Saved\"}");
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
+    private void deleteProduct(HttpExchange exchange) throws IOException {
+        try {
+            String query = exchange.getRequestURI().getQuery();
+
+            if (query != null && query.contains("all=true")) {
+                try (Connection conn = Database.getConnection();
+                     Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate("DELETE FROM products");
+                }
+                sendResponse(exchange, 200, "{\"status\":\"All Deleted\"}");
+                return;
+            }
+
+            if (query != null && query.contains("id=")) {
+                int id = Integer.parseInt(query.split("id=")[1].split("&")[0]);
+                try (Connection conn = Database.getConnection();
+                     PreparedStatement stmt = conn.prepareStatement("DELETE FROM products WHERE id = ?")) {
+                    stmt.setInt(1, id);
+                    stmt.executeUpdate();
+                }
+                sendResponse(exchange, 200, "{\"status\":\"Deleted\"}");
+                return;
+            }
+            sendResponse(exchange, 400, "{\"error\":\"Invalid request\"}");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            sendResponse(exchange, 500, "{\"error\":\"" + e.getMessage() + "\"}");
+        }
+    }
+
+    private void sendResponse(HttpExchange exchange, int code, String response) throws IOException {
+        byte[] bytes = response.getBytes("UTF-8");
+        exchange.sendResponseHeaders(code, bytes.length);
+        OutputStream os = exchange.getResponseBody();
+        os.write(bytes);
+        os.close();
+    }
+}

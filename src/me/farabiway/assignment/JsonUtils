@@ -1,0 +1,30 @@
+public class JsonUtils {
+
+    // Вспомогательный метод для извлечения значений из JSON строки
+    public static String parseJson(String json, String key) {
+        try {
+            String searchKey = "\"" + key + "\":";
+            int start = json.indexOf(searchKey);
+            if (start == -1) return "";
+            start += searchKey.length();
+
+            while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == ':')) {
+                start++;
+            }
+
+            if (json.charAt(start) == '"') {
+                start++;
+                int end = json.indexOf("\"", start);
+                return json.substring(start, end);
+            } else {
+                int end = start;
+                while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '.')) {
+                    end++;
+                }
+                return json.substring(start, end);
+            }
+        } catch (Exception e) {
+            return "";
+        }
+    }
+}

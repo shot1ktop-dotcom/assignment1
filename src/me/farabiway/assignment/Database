@@ -1,0 +1,31 @@
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+public class Database {
+    private static final String DB_URL = "jdbc:postgresql://localhost:5432/warehouse";
+    private static final String USER = "postgres";
+    private static final String PASS = "0000";
+
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(DB_URL, USER, PASS);
+    }
+
+    // Метод для создания таблицы при запуске
+    public static void initDatabase() {
+        String sql = "CREATE TABLE IF NOT EXISTS products (" +
+                "id SERIAL PRIMARY KEY, " +
+                "name VARCHAR(100), " +
+                "price DECIMAL(10, 2), " +
+                "supplier_id INT)";
+
+        try (Connection conn = getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+            System.out.println("✅ База данных подключена. Таблица products готова.");
+        } catch (SQLException e) {
+            System.err.println("❌ Ошибка базы данных: " + e.getMessage());
+        }
+    }
+}
